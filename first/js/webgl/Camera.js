@@ -1,0 +1,121 @@
+/**
+*   Camera
+*/
+
+var CAMERA_ORBIT_TYPE    = 1;
+var CAMERA_TRACKING_TYPE = 2;
+
+function Camera(t){
+    this.matrix     = mat4.create();
+    this.up         = vec3.create();
+    this.right      = vec3.create();
+    this.normal     = vec3.create();
+    this.position   = vec3.create();
+    this.home       = vec3.create();
+    this.azimuth    = 0.0;
+    this.elevation  = 0.0;
+    this.type       = t;
+    this.steps      = 0;
+    
+    this.hookRenderer = null;
+    this.hookGUIUpdate = null;
+}
+
+Camera.prototype.setType = function(t){
+    
+    this.type = t;
+    
+    if (t != CAMERA_ORBIT_TYPE && t != CAMERA_TRACKING_TYPE) {
+        alert('Wrong Camera Type!. Setting Orbitting type by default');
+        this.type = CAMERA_ORBIT_TYPE;
+    }
+}
+
+Camera.prototype.goHome = function(h){
+    if (h != null){
+        this.home = h;
+    }
+    this.setPosition(this.home);
+    this.setAzimuth(0);
+    this.setElevation(0);
+    this.steps = 0;
+}
+
+
+Camera.prototype.setPosition = function(p){
+    vec3.set(p, this.position);
+    this.update();
+}
+
+Camera.prototype.setAzimuth = function(az){
+    this.changeAzimuth(az - this.azimuth);
+}
+
+Camera.prototype.changeAzimuth = function(az){
+    var c = this;
+    c.azimuth +=az;
+    
+    if (c.azimuth > 360 || c.azimuth <-360) {
+		c.azimuth = c.azimuth % 360;
+	}
+    c.update();
+}
+
+
+Camera.prototype.setElevation = function(el){
+    this.changeElevation(el - this.elevation);
+}
+
+Camera.prototype.changeElevation = function(el){
+    var c = this;
+    
+    c.elevation +=el;
+    
+    if (c.elevation > 360 || c.elevation <-360) {
+		c.elevation = c.elevation % 360;
+	}
+    c.update();
+}
+
+
+
+Camera.prototype.update = function(){
+    if (this.type == CAMERA_TRACKING_TYPE){
+        mat4.identity(this.matrix);
+        mat4.translate(this.matrix, this.position);
+        mat4.rotateY(this.matrix, this.azimuth * Math.PI/180);
+        mat4.rotateX(this.matrix, this.elevation * Math.PI/180);
+    }
+    else {
+        mat4.identity(this.matrix);
+        mat4.rotateY(this.matrix, this.azimuth * Math.PI/180);
+        mat4.rotateX(this.matrix, this.elevation * Math.PI/180);
+        mat4.translate(this.matrix, this.position);
+    }
+
+    var m = this.matrix;
+    mat4.multiplyVec4(m, [1, 0, 0, 0], this.right);
+    mat4.multiplyVec4(m, [0, 1, 0, 0], this.up);
+    mat4.multiplyVec4(m, [0, 0, 1, 0], this.normal);
+    
+    
+    if(this.type == CAMERA_TRACKING_TYPE){
+        mat4.multiplyVec4(m, [0, 0, 0, 1], this.position);
+    }
+    
+    
+    if(this.hookRenderer){
+        this.hookRenderer();
+    }
+    if(this.hookGUIUpdate){
+        this.hookGUIUpdate();
+    }
+    
+}
+
+Camera.prototype.getViewTransform = function(){
+    var m = mat4.create();
+    mat4.inverse(this.matrix, m);
+    return m;
+}
+
